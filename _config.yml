@@ -23,7 +23,7 @@ email: castlekiragarage@gmail.com
 description: >- # this means to ignore newlines until "baseurl:"
   A journal about various failures encounter on that path of learning 
   3d printing and other personal projects
-baseurl: "/docs_of_failures" # the subpath of your site, e.g. /blog
+baseurl: "/" # the subpath of your site, e.g. /blog
 url: "https://ishyca.github.io" # the base hostname & protocol for your site, e.g. http://example.com
 github_username:  ishyca
 
