@@ -4,5 +4,5 @@ engineering journals
 
 
 - - trello : https://trello.com/b/8umGIBfw/arrakis
-  - url: https://ishyca.github.io/-ishyca.github.io/
+  - url: https://ishyca.github.io/
 
