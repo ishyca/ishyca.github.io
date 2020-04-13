@@ -46,19 +46,31 @@ network={
     - pip install virtualenv
     - cd /home/$username ; virtualenv OctoPrintPY27
 
-8.1 octoprint local build 3.
+9. octoprint local build 3
     - sudo apt install python3-pip
     - update profile to have pip/virtual clearly distinguish between 2 and 3
     - user must have dialout unix group for connecting to ttyACM0 usb port
     -
-9. Octoprint Printing
+10. Octoprint Printing
   - Don't save to SD card : computer- network-raspbi - serial(one line ack/ at time slow)  ->prusa marlin
 
-10. openssh server on your computer
+11. openssh server on your computer
     - allow specific port for ssh by edit Port on  etc/ssh/sshd-config
     - configure octo to have specific port for connecting to your server ~/.ssh/config
     - rsync command : rsync -rvz --progress ./cam.jpg  $username@$castle:Downloads/cam.jpg
+12. mjpg-streamer
+    - octoprint daemon start
+    - LD_export LD_LIBRARY_PATH=.
+    - ./mjpg_streamer -o "output_http.so -w ./www" -i "input_raspicam.so"
+    input and output file, start a server on :8080?action=stream
+    give the url to octoprint and restart the daemon -> see control tab
     
-6. sudo apt-get install git
+13. sudo apt-get install git
+
 ### Ansible 
 ### Plugins  
+
+#### Spaghetti Dectective
+  - server-client modal, 2G server not on pi
+  1. Docker installation
+   a. 
