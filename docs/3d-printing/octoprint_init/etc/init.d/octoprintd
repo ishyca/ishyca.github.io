@@ -1,0 +1,106 @@
+#!/bin/sh
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+DESC="octoprint  Daemon"
+NAME="octprintd"
+DAEMON=/bin/
+USER=chu
+PIDFILE=/var/run/$NAME.pid
+PKGNAME=webcamd
+SCRIPTNAME=/etc/init.d/$PKGNAME
+LOG=/var/log/webcamd.log
+
+[ -r /etc/default/$PKGNAME ] && . /etc/default/$PKGNAME
+
+[ -x "$DAEMON" ] || exit 0
+
+[ -f /etc/default/rcS ] && . /etc/default/rcS
+
+. /lib/lsb/init-functions
+
+if [ -z "$ENABLED" -o "$ENABLED" != "1" ]
+then
+    log_warning_msg "Not starting $PKGNAME, edit /etc/default/$PKGNAME to start it "
+    exit 0
+fi
+
+
+is_alive()
+{
+
+	pid=`cat $1` > /dev/null 2>&1
+	kill -0 $pid > /dev/null 2>&1
+	return $?
+
+}
+
+
+do_start()
+{
+		#0 started, 1runing, 2 = not started
+		is_alive $PIDFILE
+		RETVAL="$?"
+
+		if [ $RETVAL != 0 ] ; then
+		   start-stop-daemon --start --background --no-close --quiet --pidfile $PIDFILE --make-pidfile \
+		   --startas /bin/bash --chuid $USER --user $USER -- -c "exec $DAEMON" >> $LOG 2>&1
+		   RETVAL="$?"
+		fi
+
+}
+
+do_stop()
+{
+
+	# 0 stopped, 1 already stopped, 2 could not be stopped
+
+	start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --user $USER  --pidfile $PIDFILE
+	RETVAL="$?"
+	[ "$RETVAL" = "2" ] && return 2
+
+        rm -f $PIDFILE
+
+	[ "$RETVAL" = "0" ] && return 0 || return 1 
+
+}
+
+case "$1" in
+     start)
+	[ "$VERBOSE" != no ] && log_daemon_msg "Starting $DESC" "$NAME"
+      	do_start
+      	case "$?" in
+              	  0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
+	          2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
+        esac
+      	;;
+     stop)
+	[ "$VERBOSE" != no ] && log_daemon_msg "Stopping $DESC" "$NAME"
+	do_stop
+	case "$?" in
+	     0|1)  [ "$VERBOSE" != no ] && log_end_msg 0 ;;
+	     2) [ "$VERBOSE" !=no ] && log_end_msg 1 ;;
+	esac
+	;;
+     restart)
+	log_daemon_msg "Restarting $DESC" "$NAME"
+	do_stop
+	case "$?" in
+	     0|1)
+		do_start
+		case "$?" in
+		     0) log_end_msg 0 ;;
+		     1) log_end_msg 1 ;;
+		     *) log_end_msg 1 ;;
+		esac
+		;;
+	     *)
+		log_end_msg 1
+		;;
+	esac
+	;;
+     *)
+	echo "Usage: $SCRIPTNAME {start | stop | restart } " >&2
+	exit 3
+	;;
+esac
+     

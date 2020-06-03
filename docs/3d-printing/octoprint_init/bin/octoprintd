@@ -1,0 +1,116 @@
+#!/bin/bash
+
+# config should be edited through octoprint.txt
+
+MJPGSTREAMER_HOME=/home/chu/Github/mjpg-streamer/mjpg-streamer-experimental
+MJPGSTREAMER_INPUT_USB="input_uvc.so"
+MJPGSTREAMER_INPUT_RASPICAM="input_raspicam.so"
+
+#init configuration -  edit  using /boot/octopi.txt
+camera="raspi"
+camera_usb_options="-r 640x480 -f 10"
+camera_raspi_options="-fps 10"
+additional_brokenfps_usb_devices=()
+
+if [ -e "/boot/octopi.txt" ]; then
+    source "/boot/octopi.txt"
+fi
+
+brokenfps_usb_devices=("046d:082b" "${additional_brokenfps_usb_devices[@]}")
+
+#clean up on  sigint or sigterm
+function cleanup() {
+    local pids=$(jobs -pr)
+    [ -n "$pids" ] && kill $pids
+    exit 0 
+}
+
+function goodbye() {
+    echo ""
+    echo "Goodbye from webcamd..."
+    echo ""
+}
+
+function runMjpgStreamer {
+    input=$1
+    pushd $MJPGSTREAMER_HOME > /dev/null 2>&1
+         echo Running ./mjpg_streamer -o "output_http.so -w ./www" -i "$input"
+         LD_LIBRARY_PATH=. ./mjpg_streamer -o "output_http.so -w ./www" -i "$input" &
+         wait
+    popd > /dev/null 2>&1
+}
+
+function startRaspi {
+    logger -s "Starting Raspberry Pi camera"
+    runMjpgStreamer "$MJPGSTREAMER_INPUT_RASPICAM $camera_raspi_options"
+
+}
+
+function startUsb {
+    options="$camera_usb_options"
+    device="video0"
+
+    extracted_device=`echo $options | sed 's@.*-d /dev/\(video[0-9]+\).*@\1@'`
+    if [ "$extracted_device" != "$options" ]
+    then
+	device=$extracted_device
+    fi
+
+
+    uevent_file="/sys/class/video4linux/$device/device/uevent"
+    if [ -e $uevent_file ]; then
+	product=`cat $uevent_file | grep PRODUCT | cut -d"=" -f2`
+	vid=`echo $product | cut -d"/" -f1`
+	pid=`echo $product | cut -d"/" -f2`
+	vidpid=`printf "%04x:%04x" "0x$vid" "0x$pid"`
+
+	for identifier in ${brokenfps_usb_devices[@]};
+	do
+	    if [ "$vidpid" = "$identifier" ]; then
+		echo
+		echo "Camera model $vidpid is known to not work with -f parameter, stripping it out"
+		echo
+		options=`echo $options | sed -e "s/\(\s\+\|^\)-f\s\+[0-9]\+//g"`
+	    fi
+	done
+    fi
+
+    logger -s "Starting USB webcam"
+    runMjpgStreamer "$MJPGSTREAMER_INPUT_USB $options"
+    
+}
+
+trap "cleanup" SIGINT SIGTERM
+
+trap "goodbye" EXIT
+
+echo "Starting up webcamDaemon ... "
+echo ""
+echo "--- Configuration: -----------------------------"
+echo "camera:           $camera"
+echo "usb options:      $camera_usb_options"
+echo "raspi options:    $camera_raspi_options"
+echo "------------------------------------------------"
+echo ""
+
+
+# vcgencmd show power status to display, prevent from blocking
+vcgencmd version > /dev/null 2>&1
+
+while true; do
+
+    if [ -e "/dev/video0" ] && { [ "$camera" = "auto" ] || [ "$camera" = "usb" ] ; }; then
+	startUsb
+	sleep 30 &
+	wait
+    elif [ "` vcgencmd get_camera `" = "supported=1 detected=1" ] && { [ "$camera" = "auto" ] || [ "$camera" = "raspi" ] ;}; then
+	startRaspi
+	sleep 30 &
+	wait
+    else
+	echo "No camera detected, trying again in two minutes"
+	sleep 120 &
+	wait
+    fi
+
+done

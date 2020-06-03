@@ -1,0 +1,11 @@
+
+
+DAEMON=/bin/webcamd
+
+
+LOG=/var/log/webcamd.log
+
+USER=chu
+
+
+ENABLED=1
